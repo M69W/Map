@@ -1,0 +1,172 @@
+
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <title>符合条件的坐标在圆内显示</title>
+    <link rel="stylesheet" href="https://cache.amap.com/lbs/static/main.css"/>
+    <script type="text/javascript" src="http://webapi.amap.com/maps?v=1.4.5&key=您申请的key值&plugin=AMap.Geocoder"></script><!-- 替换你的key -->
+    <script type="text/javascript" src="http://cache.amap.com/lbs/static/addToolbar.js"></script>
+    <style>
+        #addressBox{height:20px;width:600px;}
+        #mapBox{height:400px;width:600px}
+        #pointBox{height:20px;width:600px;}
+        .amap-marker-label {
+            border: 1px solid #949494;
+            margin-top: -27px;
+            margin-left: -5px;
+        }
+    </style>
+<body>
+<div>
+    <!-- <input id="addressBox" type="text" value="请输入结构化地址，例如广东省广州市越秀区洪桥街道东风中路389号壬丰大厦" /> -->
+    <!-- <input id="addressBox" type="text" value="请输入结构化地址，例如广州市海珠区紫龙大街18号" /> -->
+    <input id="addressBox" type="text" value="请输入结构化地址，例如广州市天河区天河路490号" />
+    <input id="" type="button" onclick="geocoder();" value="搜索" />
+</div>
+<div id='pointBox'>&nbsp;</div>
+<div id='mapBox'></div>
+<div id="tip"></div>
+<script type="text/javascript">
+var $addressBox = document.getElementById('addressBox');
+var $pointBox = document.getElementById("pointBox");
+var editor={};
+
+//创建地图
+var map = new AMap.Map("mapBox", {
+    resizeEnable: true,
+    zoom:13
+});
+
+//添加标注
+function addMarker(point) {
+    var marker = new AMap.Marker({
+        color: 'red',
+        map: map,
+        position: [ point.getLng(),  point.getLat()]
+    });
+
+    //设置鼠标划过点标记显示的文字提示  
+    marker.setTitle("设置位置");  
+    marker.setLabel({  
+        offset: new AMap.Pixel(15, 15),  
+        content: "这是默认地址指定的地图位置"  
+    });
+}
+
+//地图中心点添加标注
+function addCenterPoint(){
+    // map.clearMap(); //清除地图，需要重新渲染
+    var centerPoint = map.getCenter();
+    addMarker(centerPoint);
+    $pointBox.innerHTML = "该地址的经纬度为：" + centerPoint.getLng() + ',' + centerPoint.getLat();
+}
+addCenterPoint();
+
+// 关键字搜索
+function geocoder() {
+    var myGeo = new AMap.Geocoder();
+    //地理编码,返回地理编码结果
+    //获取默认地址去搜索
+    myGeo.getLocation($addressBox.value, function(status, result) {
+        if (status === 'complete' && result.info === 'OK') {
+            //地址解析成功
+            geocoder_CallBack(result);
+        }
+        else{
+            //地址解析失败，提示找不到此地址
+            $pointBox.innerHTML = "查无此地址";
+        }
+    });
+}
+
+
+//地理编码返回结果展示
+function geocoder_CallBack(data) {
+    map.clearMap(); // 清除地图（圆圈和图标）需要重新渲染
+    // console.log(data.geocodes[0])
+    // console.log(data.geocodes[0].addressComponent.province+data.geocodes[0].addressComponent.city+data.geocodes[0].addressComponent.district+data.geocodes[0].addressComponent.street+data.geocodes[0].addressComponent.streetNumber)
+    // 判断没有街道或门牌时打印具体地名
+    if(data.geocodes[0].addressComponent.street ===''){//
+        console.log('搜索的地址：',data.geocodes[0].formattedAddress)
+    } else {
+        console.log('搜索的地址：',data.geocodes[0].addressComponent.province+data.geocodes[0].addressComponent.city+data.geocodes[0].addressComponent.district+data.geocodes[0].addressComponent.street+data.geocodes[0].addressComponent.streetNumber)
+    }
+    // 打印搜索地址的坐标
+    console.log('X：',data.geocodes[0].location.lng)
+    console.log('Y：',data.geocodes[0].location.lat)
+    var resultStr = "";
+    var geocode = data.geocodes;
+    addMarker(geocode[0].location);
+    resultStr += "该地址的经纬度为</b>：" + geocode[0].location.getLng() + ", " + geocode[0].location.getLat();
+    
+    //声明一个坐标 list
+    var list={
+      "size":5, //限制显示标记的数量
+      "data":[
+        {"id": 1,"x":113.332105,"y": 23.13321, 'name': '我家在这里'},
+        {"id": 2,"x":113.271375,"y": 23.132158,'name': '上班的路过在这里'},
+        {"id": 3,"x":113.332148,"y": 23.118469,'name': '我小学的学校'},
+        {"id": 4,"x":113.270645,"y": 23.13093,'name': '超市是一个吃货去的地方'},
+        {"id": 5,"x":113.267684,"y": 23.132731,'name': '每天都要坐公交的位置'}
+      ]
+    }
+     //定位圆心位置
+    editor._circle=(function(){
+        var circle = new AMap.Circle({
+        center: [data.geocodes[0].location.lng, data.geocodes[0].location.lat],// 获取该地址的坐标作为圆心
+            radius: 3000,         //半径
+            strokeColor: "blue",  //线颜色
+            strokeOpacity: 1,     //线透明度
+            strokeWeight: 1,      //线粗细度
+            fillColor: "#1791fc", //填充颜色
+            fillOpacity: 0.35     //填充透明度
+        });
+
+        // 构造标注点击弹窗
+        var infoWindow = new AMap.InfoWindow({offset:new AMap.Pixel(0,-30)});
+        for(var j = 0;j < list.size; j++){
+            var myObj= list.data[j];
+            var myLngLat=new AMap.LngLat(myObj.x,myObj.y);
+            // console.log(myObj.name)
+            // console.log(circle.contains(myLngLat));
+             
+            //如果坐标点在圆内则输出
+            if(circle.contains(myLngLat)){
+
+                var marker = new AMap.Marker({
+                  position: myLngLat,
+                  map: map
+                });
+                marker.content=myObj.name;
+                marker.on('click',markerClick);
+                // marker.emit('click',{target:marker}); //去掉注释则根据循环条件执行 markerClick 事件
+            }
+        }
+
+        //标注点击事件
+        function markerClick(e){
+            // console.log(e) //打印所需的事件属性方法
+            infoWindow.setContent(e.target.content);
+            infoWindow.open(map, e.target.getPosition());
+        }
+
+        circle.setMap(map);//显示圆圈
+        return circle;
+
+    })();
+    
+    map.setFitView();// 执行定位
+    $pointBox.innerHTML = resultStr;
+}
+
+map.on('moveend', function() {
+    // addCenterPoint();// 移动后在地图中心显示标注
+    // circle.setMap(map);//显示圆圈
+});
+
+</script>
+</body>
+</html>
